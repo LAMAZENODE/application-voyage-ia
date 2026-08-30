@@ -82,64 +82,46 @@ Jour 3 : Quartiers Historiques et Architecture
 
 Jour 4 : Journee Excursion et Nature
 - Matin : Depart pour une excursion en dehors de la ville vers un lac, une plage ou une montagne proche.
-- Apres-midi : Randonnee legere et pique-nique avec des produits achetes au marche local le matin.
 
 Jour 5 : Gastronomie Fine et Rencontres
 - Matin : Cours de cuisine locale ou degustation de produits du terroir chez un artisan.
-- Apres-midi : Visite de galeries d'art independantes ou de friperies locales.
 
 Jour 6 : Detente et Panoramas
-- Matin : Grasse matinee et brunch dans un quartier branche. Visite des jardins botaniques ou parcs d'envergure.
-- Apres-midi : Montee vers le meilleur point de vue de la region pour admirer le coucher de soleil.
+- Matin : Grasse matinee et brunch dans un quartier branche.
 
 Jour 7 : Souvenirs et Depart
 - Matin : Derniers achats de souvenirs locaux et preparation des bagages.
-- Apres-midi : Transfert vers la gare ou l'aeroport grace a vos frais de transport initialement prevus."""
+- Apres-midi : Transfert vers la gare ou l'aeroport grace a vos frais de transport."""
 
         # --- ARCHITECTURE DU PDF SÉCURISÉ ---
         pdf = FPDF()
         pdf.add_page()
-        
-        # En-tête coloré (Bleu Royal)
         pdf.set_fill_color(30, 58, 138)
         pdf.rect(0, 0, 210, 40, 'F')
-        
-        # Titre dans l'en-tête (Blanc)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Helvetica", "B", 18)
         pdf.ln(10)
         pdf.cell(0, 10, "VOTRE RAPPORT DE VOYAGE SUR-MESURE", ln=True, align="C")
         pdf.ln(15)
-        
-        # Section Informations (Gris foncé)
         pdf.set_text_color(40, 40, 40)
         pdf.set_font("Helvetica", "B", 14)
         pdf.cell(0, 10, f"Fiche de route : {destination_input.capitalize()}", ln=True)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(4)
-        
         pdf.set_font("Helvetica", "", 11)
         pdf.cell(0, 7, f"Duree du sejour : {duree_input} jours", ln=True)
         pdf.cell(0, 7, f"Style selectionne : {style_input}", ln=True)
         pdf.cell(0, 7, f"Budget Total Estime : {st.session_state['budget_global']} EUR", ln=True)
-        pdf.cell(0, 7, f"  - Part Logement : {st.session_state['logement_total']} EUR", ln=True)
-        pdf.cell(0, 7, f"  - Part Depenses sur place : {st.session_state['vie_total']} EUR", ln=True)
         pdf.ln(10)
-        
-        # Section Programme
         pdf.set_font("Helvetica", "B", 14)
         pdf.cell(0, 10, "Votre Itineraire Jour par Jour", ln=True)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
-        
-        # Encodage sécurisé pour le texte de l'IA
         pdf.set_font("Helvetica", "", 11)
         texte_utf8 = st.session_state["texte_ia"].encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 6, texte_utf8)
         
-        # Sauvegarde du fichier PDF
-        pdf_bytes = pdf.output()
-        st.session_state["pdf_cree"] = bytes(pdf_bytes)
+        st.session_state["pdf_cree"] = bytes(pdf.output())
 
 # --- BLOC D'AFFICHAGE PERSISTANT ---
 if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
@@ -164,17 +146,32 @@ if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
         st.info("Affichage visuel de la carte.")
 
     st.markdown("---")
-    st.success("✨ Votre itinéraire personnalisé selon votre budget est prêt !")
-    st.markdown(st.session_state["texte_ia"])
+    st.success("✨ Votre aperçu d'itinéraire personnalisé selon votre budget est prêt !")
     
-    # Bouton de téléchargement du PDF Pro à gauche
-    st.sidebar.markdown("### 📥 Téléchargement")
-    st.sidebar.download_button(
-        label="Télécharger le Guide PDF Pro 📄",
-        data=st.session_state["pdf_cree"],
-        file_name=f"Guide_Voyage_{st.session_state['dest']}.pdf",
-        mime="application/pdf"
-    )
+    # --- COUPE DU TEXTE POUR APERÇU GRATUIT (JOUR 1 & 2) ---
+    texte_complet = st.session_state["texte_ia"]
+    if "Jour 3" in texte_complet:
+        texte_gratuit = texte_complet.split("Jour 3")[0]
+        st.markdown(texte_gratuit)
+        
+        # --- ENCART DE PAIEMENT STRIPE POUR LE RESTE ---
+        st.markdown("---")
+        st.markdown("### 🔒 Débloquez l'itinéraire complet et téléchargez votre guide PDF pro !")
+        st.markdown("Pour seulement **4,99 EUR** en paiement unique, accédez instantanément à la totalité de votre fiche de route optimisée, vos conseils secrets et votre planificateur budgétaire exportable.")
+        
+        # COLO_ICI votre lien Stripe Link
+        lien_de_paiement_stripe = "https://stripe.com" 
+        st.link_button("💳 Débloquer mon itinéraire complet (4,99 EUR)", lien_de_paiement_stripe, type="primary")
+    else:
+        st.markdown(texte_complet)
+        st.sidebar.markdown("### 📥 Téléchargement")
+        st.sidebar.download_button(
+            label="Télécharger le Guide PDF Pro 📄",
+            data=st.session_state["pdf_cree"],
+            file_name=f"Guide_Voyage_{st.session_state['dest']}.pdf",
+            mime="application/pdf"
+        )
+
 
 
 
