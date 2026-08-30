@@ -86,12 +86,7 @@ Jour 4 : Journee Excursion et Nature
 Jour 5 : Gastronomie Fine et Rencontres
 - Matin : Cours de cuisine locale ou degustation de produits du terroir chez un artisan.
 
-Jour 6 : Detente et Panoramas
-- Matin : Grasse matinee et brunch dans un quartier branche.
-
-Jour 7 : Souvenirs et Depart
-- Matin : Derniers achats de souvenirs locaux et preparation des bagages.
-- Apres-midi : Transfert vers la gare ou l'aeroport grace a vos frais de transport."""
+... (La suite de l'itineraire est verrouillee par le paiement)"""
 
         # --- ARCHITECTURE DU PDF SÉCURISÉ ---
         pdf = FPDF()
@@ -113,13 +108,6 @@ Jour 7 : Souvenirs et Depart
         pdf.cell(0, 7, f"Style selectionne : {style_input}", ln=True)
         pdf.cell(0, 7, f"Budget Total Estime : {st.session_state['budget_global']} EUR", ln=True)
         pdf.ln(10)
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 10, "Votre Itineraire Jour par Jour", ln=True)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(5)
-        pdf.set_font("Helvetica", "", 11)
-        texte_utf8 = st.session_state["texte_ia"].encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, texte_utf8)
         
         st.session_state["pdf_cree"] = bytes(pdf.output())
 
@@ -159,8 +147,9 @@ if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
         st.markdown("### 🔒 Débloquez l'itinéraire complet et téléchargez votre guide PDF pro !")
         st.markdown("Pour seulement **4,99 EUR** en paiement unique, accédez instantanément à la totalité de votre fiche de route optimisée, vos conseils secrets et votre planificateur budgétaire exportable.")
         
-        # COLO_ICI votre lien Stripe Link
-        lien_de_paiement_stripe = "https://stripe.com" 
+        # ⚠️ REMPLACE UNIQUEMENT LA LIGNE CI-DESSOUS PAR TON LIEN STRIPE ⚠️
+        lien_de_paiement_stripe = "METS_TON_VRAI_LIEN_STRIPE_ICI" 
+        
         st.link_button("💳 Débloquer mon itinéraire complet (4,99 EUR)", lien_de_paiement_stripe, type="primary")
     else:
         st.markdown(texte_complet)
@@ -171,6 +160,7 @@ if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
             file_name=f"Guide_Voyage_{st.session_state['dest']}.pdf",
             mime="application/pdf"
         )
+
 
 
 
