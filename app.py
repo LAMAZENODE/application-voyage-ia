@@ -148,7 +148,8 @@ if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
         st.markdown("Pour seulement **4,99 EUR** en paiement unique, accédez instantanément à la totalité de votre fiche de route optimisée, vos conseils secrets et votre planificateur budgétaire exportable.")
         
         # ⚠️ REMPLACE UNIQUEMENT LA LIGNE CI-DESSOUS PAR TON LIEN STRIPE ⚠️
-        lien_de_paiement_stripe = "METS_TON_VRAI_LIEN_STRIPE_ICI" 
+        lien_de_paiement_stripe = "https://buy.stripe.com/cNi5kC5TV1vs3R22cU8g001"
+ 
         
         st.link_button("💳 Débloquer mon itinéraire complet (4,99 EUR)", lien_de_paiement_stripe, type="primary")
     else:
