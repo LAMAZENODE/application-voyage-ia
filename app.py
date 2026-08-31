@@ -111,19 +111,31 @@ if not st.session_state.est_paye:
     *   🚗 Activation du guide de **Location de voiture** (Options éco et astuces transports).
     """)
     
-    if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
+   
+        if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
-                line_items=[{'price': ID_PRIX_STRIPE, 'quantity': 1}],
+                line_items=[{
+                    'price': ID_PRIX_STRIPE,
+                    'quantity': 1
+                }],
                 mode='payment',
                 success_url=f"{BASE_URL}?success=true",
                 cancel_url=f"{BASE_URL}?cancel=true",
             )
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={checkout_session.url}">', unsafe_allow_html=True)
-            st.link_button("➡️ Aller vers la page de paiement sécurisée", checkout_session.url)
+            
+            # 1. Option de secours visuelle : Un vrai bouton cliquable qui apparaît si la redirection automatique échoue
+            st.success("🎟️ Votre lien de paiement est prêt !")
+            st.link_button("➡️ Cliquez ici pour ouvrir la page de paiement sécurisée", checkout_session.url, type="primary")
+            
+            # 2. Injection JavaScript pour forcer l'ouverture automatique immédiate dans un nouvel onglet
+            js = f"<script>window.open('{checkout_session.url}', '_blank');</script>"
+            st.components.v1.html(js, height=0)
+            
         except Exception as e:
             st.error(f"Erreur d'initialisation Stripe : {e}")
+
 
     # Aperçu visuel des boutons bloqués
     st.markdown("---")
