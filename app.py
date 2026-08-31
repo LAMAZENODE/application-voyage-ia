@@ -1,7 +1,6 @@
-import streamlit as pd
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+import google.genai as genai
 import stripe
 
 # 1. Configuration de la page
@@ -18,8 +17,8 @@ try:
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
     
-    # Configuration Gemini (Google)
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # Nouvelle syntaxe officielle de Google (SDK google-genai)
+    client_gemini = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     
     # URL de votre application
     BASE_URL = st.secrets["MON_URL_STREAMLIT"]
@@ -27,6 +26,7 @@ except Exception:
     st.warning("⚠️ Clés manquantes dans vos Streamlit Secrets (STRIPE_SECRET_KEY, STRIPE_PRICE_ID, GEMINI_API_KEY ou MON_URL_STREAMLIT).")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
     BASE_URL = "http://localhost:8501"
+    client_gemini = None
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -40,14 +40,16 @@ if st.query_params.get("success") == "true":
     st.query_params.clear()
 
 # ==========================================
-# 🧠 FONCTION COMMUNE POUR L'IA (GEMINI)
+# 🧠 FONCTION COMMUNE POUR L'IA (GOOGLE-GENAI)
 # ==========================================
 def demander_gemini(prompt):
+    if client_gemini is None:
+        return "⚠️ L'IA n'est pas configurée. Veuillez ajouter votre GEMINI_API_KEY dans les Secrets."
     try:
-        # Utilisation du modèle Gemini Pro (rapide et efficace)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(
-            f"Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown. Réponds au prompt suivant : {prompt}"
+        # Syntaxe officielle du nouveau SDK avec le modèle de référence gemini-2.5-flash
+        response = client_gemini.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=f"Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown. Réponds au prompt suivant : {prompt}",
         )
         return response.text
     except Exception as e:
@@ -168,6 +170,8 @@ else:
             with st.spinner(f"Analyse des transports à {destination}..."):
                 prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}."
                 st.markdown(demander_gemini(prompt_voiture))
+
+
 
 
 
