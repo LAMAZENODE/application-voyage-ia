@@ -1,6 +1,7 @@
+import streamlit as pd
 import streamlit as st
 import pandas as pd
-import openai
+import google.generativeai as genai
 import stripe
 
 # 1. Configuration de la page
@@ -13,16 +14,19 @@ st.subheader("Générez votre itinéraire, visualisez la carte et estimez votre 
 # 🔑 RÉCUPÉRATION DE VOS SECRETS STREAMLIT
 # ==========================================
 try:
-    # Le code va chercher vos clés réelles cachées dans vos secrets Streamlit
+    # Configuration Stripe
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
+    
+    # Configuration Gemini (Google)
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    
+    # URL de votre application
+    BASE_URL = st.secrets["MON_URL_STREAMLIT"]
 except Exception:
-    st.warning("⚠️ Clés manquantes dans vos Streamlit Secrets (STRIPE_SECRET_KEY, STRIPE_PRICE_ID ou OPENAI_API_KEY).")
+    st.warning("⚠️ Clés manquantes dans vos Streamlit Secrets (STRIPE_SECRET_KEY, STRIPE_PRICE_ID, GEMINI_API_KEY ou MON_URL_STREAMLIT).")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
-
-# URL de redirection après le paiement
-BASE_URL = st.query_params.get("url", "http://localhost:8501") 
+    BASE_URL = "http://localhost:8501"
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -30,43 +34,40 @@ BASE_URL = st.query_params.get("url", "http://localhost:8501")
 if "est_paye" not in st.session_state:
     st.session_state.est_paye = False
 
-# Si Stripe renvoie l'utilisateur avec ?success=true dans l'URL
+# Si Stripe renvoie l'utilisateur après un paiement réussi
 if st.query_params.get("success") == "true":
     st.session_state.est_paye = True
     st.query_params.clear()
 
 # ==========================================
-# 🧠 FONCTION COMMUNE POUR L'IA (OPENAI)
+# 🧠 FONCTION COMMUNE POUR L'IA (GEMINI)
 # ==========================================
-def demander_ia(prompt):
+def demander_gemini(prompt):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
+        # Utilisation du modèle Gemini Pro (rapide et efficace)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(
+            f"Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown. Réponds au prompt suivant : {prompt}"
         )
-        return response.choices.message['content']
+        return response.text
     except Exception as e:
-        return f"⚠️ Erreur de connexion à l'IA : {e}."
+        return f"⚠️ Erreur de connexion à Gemini : {e}."
 
 # ==========================================
 # 🗺️ ENTRÉES DE L'UTILISATEUR (DYNAMIQUES)
 # ==========================================
 st.markdown("### 🗺️ Les détails du voyage")
-destination = st.text_input("📍 Où souhaitez-vous aller ?", value="Tunisie")
+destination = st.text_input("📍 Où souhaitez-vous aller ?", value="Maroc")
 jours = st.slider("📅 Durée du séjour (jours)", min_value=1, max_value=14, value=7)
 style = st.selectbox("🎒 Style de voyage", ["Culturel & Historique", "Luxe & Détente", "Économique", "Aventure"])
 
 st.markdown("### 💰 Vos estimations budgétaires par jour")
-budget_hotel = st.number_input("🏨 Hébergement / nuit (EUR)", value=68)
-budget_nourriture = st.number_input("🍔 Nourriture / jour (EUR)", value=29)
+budget_hotel = st.number_input("🏨 Hébergement / nuit (EUR)", value=62)
+budget_nourriture = st.number_input("🍔 Nourriture / jour (EUR)", value=21)
 budget_activites = st.number_input("🎟️ Activités / jour (EUR)", value=20)
-transport_ar = st.number_input("✈️ Prix total des billets de transport Aller-Retour (EUR)", value=158)
+transport_ar = st.number_input("✈️ Prix total des billets de transport Aller-Retour (EUR)", value=154)
 
-# Calculs automatiques du Budget
+# Calculs automatiques
 logement_total = budget_hotel * jours
 vie_sur_place = (budget_nourriture + budget_activites) * jours
 budget_total = logement_total + vie_sur_place + transport_ar
@@ -81,7 +82,7 @@ col_b3.metric("BUDGET TOTAL ESTIMÉ", f"{budget_total} EUR")
 st.markdown("---")
 st.markdown(f"### ✨ Votre itinéraire personnalisé pour : **{destination}**")
 
-# --- PARTIE PUBLIQUE : Toujours visible (Jours 1 & 2) ---
+# Part 1 : Toujours visible
 st.markdown(f"""
 **Jour 1 : Immersion à {destination}**
 *   **Matin :** Accueil et installation à votre hébergement (Adapté à votre budget de {budget_hotel} EUR/nuit). Découverte du centre historique à pied.
@@ -102,35 +103,30 @@ if not st.session_state.est_paye:
     st.markdown(f"""
     ### 🚀 Débloquez votre Guide Premium pour {destination}
     Accédez instantanément à vos outils d'optimisation et à votre itinéraire complet pour seulement **4,99 EUR** :
-    *   🗺️ **L'itinéraire complet** du Jour 3 au Jour {jours} sur mesure.
+    *   🗺️ **L'itinéraire complet** du Jour 3 au Jour {jours} généré sur mesure par l'IA.
     *   🏨 Activation du bouton **Chercher un hôtel moins cher** (Hôtels réels sous les {budget_hotel} EUR).
-    *   🍔 Activation du bouton **Restaurant pas cher** (Adresses locales et de terroir).
-    *   🚗 Activation du guide de **Location de voiture** (Agences locales éco et astuces transports).
+    *   🍔 Activation du bouton **Restaurant pas cher** (Adresses locales authentiques).
+    *   🚗 Activation du guide de **Location de voiture** (Options éco et astuces transports).
     """)
     
-    # Le bouton de paiement Stripe réel
     if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
-                line_items=[{
-                    'price': ID_PRIX_STRIPE,  # Appel de votre Price ID réel configuré sur Stripe
-                    'quantity': 1
-                }],
+                line_items=[{'price': ID_PRIX_STRIPE, 'quantity': 1}],
                 mode='payment',
                 success_url=f"{BASE_URL}?success=true",
                 cancel_url=f"{BASE_URL}?cancel=true",
             )
-            # Redirection automatique vers votre Stripe Checkout réel
             st.markdown(f'<meta http-equiv="refresh" content="0; url={checkout_session.url}">', unsafe_allow_html=True)
             st.link_button("➡️ Aller vers la page de paiement sécurisée", checkout_session.url)
         except Exception as e:
             st.error(f"Erreur d'initialisation Stripe : {e}")
 
-    # 👀 PREUVE VISUELLE POUR LE CLIENT : Les boutons apparaissent mais sont bloqués
+    # Aperçu visuel des boutons bloqués
     st.markdown("---")
     st.markdown("### ⚙️ Vos outils d'optimisation budgétaire (Verrouillés)")
-    st.caption("💡 *Ces 3 boutons s'activeront et interrogeront l'IA en direct dès la validation de votre paiement.*")
+    st.caption("💡 *Ces 3 boutons interrogeront l'IA de Gemini en direct dès la validation du paiement.*")
     
     col_lock1, col_lock2, col_lock3 = st.columns(3)
     with col_lock1:
@@ -141,38 +137,39 @@ if not st.session_state.est_paye:
         st.button("🔒 🚗 Location de voiture", disabled=True, key="btn_c_lock")
 
 # ==========================================
-# 🔓 CAS N°2 : LE CLIENT A PAYÉ (TOUT SE DÉBLOQUE)
+# 🔓 CAS N°2 : LE CLIENT A PAYÉ (DÉBLOQUÉ)
 # ==========================================
 else:
-    st.success("✅ **Félicitations ! Votre paiement a été validé. Vos outils premium et l'IA sont actifs.**")
+    st.success("✅ **Félicitations ! Votre paiement a été validé. Vos outils premium et l'IA Gemini sont actifs.**")
     
-    # La suite de l'itinéraire générée par OpenAI
-    with st.spinner("L'IA rédige la suite de votre parcours d'expert..."):
-        prompt_suite = f"Rédige de manière condensée la suite de l'itinéraire du Jour 3 au Jour {jours} pour un voyage {style} à {destination}."
-        st.markdown(demander_ia(prompt_suite))
+    with st.spinner("L'IA Gemini rédige la suite de votre parcours d'expert..."):
+        prompt_suite = f"Rédige la suite condensée de l'itinéraire du Jour 3 au Jour {jours} pour un voyage {style} à {destination}."
+        st.markdown(demander_gemini(prompt_suite))
             
     st.markdown("---")
-    st.markdown("### ⚙️ Vos outils d'optimisation budgétaire débloqués (Recherche IA en direct)")
+    st.markdown("### ⚙️ Vos outils d'optimisation budgétaire débloqués (Recherche Gemini en direct)")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
         if st.button("🏨 Chercher hôtel pas cher", key="btn_h_open"):
             with st.spinner(f"Recherche de logements économiques à {destination}..."):
-                prompt_hotel = f"Donne 3 vrais noms d'hôtels ou maisons d'hôtes réels et bien notés à {destination} à moins de {budget_hotel}€ par nuit. Présente sous forme de tableau Markdown (Nom, Prix, Quartier)."
-                st.markdown(demander_ia(prompt_hotel))
+                prompt_hotel = f"Donne 3 vrais noms d'hôtels réels et bien notés à {destination} à moins de {budget_hotel}€ par nuit. Présente sous forme de tableau Markdown (Nom, Prix, Quartier)."
+                st.markdown(demander_gemini(prompt_hotel))
                 
     with col2:
         if st.button("🍔 Restaurant pas cher", key="btn_r_open"):
             with st.spinner(f"Trouvailles culinaires à {destination}..."):
-                prompt_resto = f"Donne 3 vrais noms de restaurants locaux ou street food pas chers pour manger local à {destination} pour moins de {budget_nourriture}€ par repas. Ajoute une spécialité à tester."
-                st.markdown(demander_ia(prompt_resto))
+                prompt_resto = f"Donne 3 vrais noms de restaurants locaux pas chers pour manger à {destination} pour moins de {budget_nourriture}€ par repas. Ajoute une spécialité à tester."
+                st.markdown(demander_gemini(prompt_resto))
                 
     with col3:
         if st.button("🚗 Location de voiture", key="btn_c_open"):
             with st.spinner(f"Analyse des transports à {destination}..."):
-                prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}. Sois concis."
-                st.markdown(demander_ia(prompt_voiture))
+                prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}."
+                st.markdown(demander_gemini(prompt_voiture))
+
+
 
 
 
