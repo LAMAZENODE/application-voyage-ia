@@ -1,166 +1,179 @@
 import streamlit as st
-from streamlit_folium import st_folium
-import folium
-from geopy.geocoders import Nominatim
-from fpdf import FPDF
-import io
+import pandas as pd
 import openai
+import stripe
 
-# Configuration de la page visuelle
+# 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
 
 st.title("🌍 Mon Copilot de Voyage IA")
 st.subheader("Générez votre itinéraire, visualisez la carte et estimez votre budget")
 
-# --- ENTRÉES DE L'UTILISATEUR ---
+# ==========================================
+# 🔑 RÉCUPÉRATION DE VOS SECRETS STREAMLIT
+# ==========================================
+try:
+    # Le code va chercher vos clés réelles cachées dans vos secrets Streamlit
+    stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
+    ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+except Exception:
+    st.warning("⚠️ Clés manquantes dans vos Streamlit Secrets (STRIPE_SECRET_KEY, STRIPE_PRICE_ID ou OPENAI_API_KEY).")
+    ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
+
+# URL de redirection après le paiement
+BASE_URL = st.query_params.get("url", "http://localhost:8501") 
+
+# ==========================================
+# 💳 GESTION DE L'ÉTAT DU PAIEMENT
+# ==========================================
+if "est_paye" not in st.session_state:
+    st.session_state.est_paye = False
+
+# Si Stripe renvoie l'utilisateur avec ?success=true dans l'URL
+if st.query_params.get("success") == "true":
+    st.session_state.est_paye = True
+    st.query_params.clear()
+
+# ==========================================
+# 🧠 FONCTION COMMUNE POUR L'IA (OPENAI)
+# ==========================================
+def demander_ia(prompt):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        return response.choices.message['content']
+    except Exception as e:
+        return f"⚠️ Erreur de connexion à l'IA : {e}."
+
+# ==========================================
+# 🗺️ ENTRÉES DE L'UTILISATEUR (DYNAMIQUES)
+# ==========================================
 st.markdown("### 🗺️ Les détails du voyage")
-destination_input = st.text_input("📍 Où souhaitez-vous aller ?", placeholder="Ex: Tokyo, Rome, Paris...")
-duree_input = st.slider("📅 Durée du séjour (jours)", min_value=1, max_value=14, value=7)
-style_input = st.selectbox("🎒 Style de voyage", ["Culturel & Historique", "Gastronomie & Local", "Petit budget / Sac à dos", "Luxe & Détente"])
+destination = st.text_input("📍 Où souhaitez-vous aller ?", value="Tunisie")
+jours = st.slider("📅 Durée du séjour (jours)", min_value=1, max_value=14, value=7)
+style = st.selectbox("🎒 Style de voyage", ["Culturel & Historique", "Luxe & Détente", "Économique", "Aventure"])
 
 st.markdown("### 💰 Vos estimations budgétaires par jour")
-col1, col2, col3 = st.columns(3)
-with col1:
-    hotel_par_jour = st.number_input("🏨 Hébergement / nuit (EUR)", min_value=0, value=68)
-with col2:
-    repas_par_jour = st.number_input("🍔 Nourriture / jour (EUR)", min_value=0, value=29)
-with col3:
-    loisirs_par_jour = st.number_input("🎟️ Activités / jour (EUR)", min_value=0, value=20)
+budget_hotel = st.number_input("🏨 Hébergement / nuit (EUR)", value=68)
+budget_nourriture = st.number_input("🍔 Nourriture / jour (EUR)", value=29)
+budget_activites = st.number_input("🎟️ Activités / jour (EUR)", value=20)
+transport_ar = st.number_input("✈️ Prix total des billets de transport Aller-Retour (EUR)", value=158)
+
+# Calculs automatiques du Budget
+logement_total = budget_hotel * jours
+vie_sur_place = (budget_nourriture + budget_activites) * jours
+budget_total = logement_total + vie_sur_place + transport_ar
+
+# Récapitulatif
+st.markdown(f"### 📊 Récapitulatif du Budget pour {jours} jours à {destination}")
+col_b1, col_b2, col_b3 = st.columns(3)
+col_b1.metric("Logement Total", f"{logement_total} EUR")
+col_b2.metric("Vie sur place", f"{vie_sur_place} EUR")
+col_b3.metric("BUDGET TOTAL ESTIMÉ", f"{budget_total} EUR")
+
+st.markdown("---")
+st.markdown(f"### ✨ Votre itinéraire personnalisé pour : **{destination}**")
+
+# --- PARTIE PUBLIQUE : Toujours visible (Jours 1 & 2) ---
+st.markdown(f"""
+**Jour 1 : Immersion à {destination}**
+*   **Matin :** Accueil et installation à votre hébergement (Adapté à votre budget de {budget_hotel} EUR/nuit). Découverte du centre historique à pied.
+*   **Après-midi :** Visite des monuments incontournables et balade dans les parcs locaux de {destination}.
+*   **Soir :** Dîner traditionnel dans un restaurant local pour tester la gastronomie typique.
+
+**Jour 2 : Exploration Culturelle**
+*   **Matin :** Visite des grands musées nationaux ou des sites archéologiques de la région.
+*   **Après-midi :** Quartier libre pour faire du shopping dans les marchés traditionnels ou artisanaux.
+*   **Conseil secret :** Utilisez les transports collectifs locaux, très avantageux pour votre budget de {budget_nourriture + budget_activites} EUR/jour.
+""")
+
+# ==========================================
+# 🔒 CAS N°1 : LE CLIENT N'A PAS ENCORE PAYÉ
+# ==========================================
+if not st.session_state.est_paye:
+    st.error("🔒 **CONTENU PREMIUM DISPONIBLE**")
+    st.markdown(f"""
+    ### 🚀 Débloquez votre Guide Premium pour {destination}
+    Accédez instantanément à vos outils d'optimisation et à votre itinéraire complet pour seulement **4,99 EUR** :
+    *   🗺️ **L'itinéraire complet** du Jour 3 au Jour {jours} sur mesure.
+    *   🏨 Activation du bouton **Chercher un hôtel moins cher** (Hôtels réels sous les {budget_hotel} EUR).
+    *   🍔 Activation du bouton **Restaurant pas cher** (Adresses locales et de terroir).
+    *   🚗 Activation du guide de **Location de voiture** (Agences locales éco et astuces transports).
+    """)
     
-billet_avion = st.number_input("✈️ Prix total des billets de transport Aller-Retour (EUR)", min_value=0, value=158)
-
-# Bouton de validation standard
-bouton_valider = st.button("Calculer le budget et créer l'itinéraire ✨", type="primary")
-
-# --- LOGIQUE AU CLIC ---
-if bouton_valider:
-    if not destination_input:
-        st.warning("Veuillez entrer une destination !")
-    else:
-        st.session_state["calcul_ok"] = True
-        st.session_state["dest"] = destination_input
-        st.session_state["dur"] = duree_input
-        st.session_state["sty"] = style_input
-        
-        # Calculs mathématiques Python
-        st.session_state["logement_total"] = hotel_par_jour * (duree_input - 1)
-        st.session_state["vie_total"] = (repas_par_jour + loisirs_par_jour) * duree_input
-        st.session_state["budget_global"] = st.session_state["logement_total"] + st.session_state["vie_total"] + billet_avion
-
-        # --- APPEL À L'INTELLIGENCE ARTIFICIELLE ---
+    # Le bouton de paiement Stripe réel
+    if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
         try:
-            api_key = st.secrets.get("OPENAI_API_KEY")
-            client = openai.OpenAI(api_key=api_key)
-            
-            prompt_ia = f"""
-            Agis en tant qu'expert en voyage et conseiller budgétaire. Crée un itinéraire détaillé de {duree_input} jours pour visiter {destination_input} (Style : {style_input}).
-            L'utilisateur a un budget de {st.session_state['budget_global']} EUR ({hotel_par_jour} EUR/nuit d'hôtel et {repas_par_jour + loisirs_par_jour} EUR/jour sur place).
-            Rédige le programme jour par jour de manière claire pour toute la duree demandee. Utilisez uniquement des tirets standards '-' pour les listes. Utilisez le mot 'EUR' au lieu du symbole de l'euro. N'utilisez aucun caractère spécial ni emoji.
-            """
-            
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt_ia}]
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': ID_PRIX_STRIPE,  # Appel de votre Price ID réel configuré sur Stripe
+                    'quantity': 1
+                }],
+                mode='payment',
+                success_url=f"{BASE_URL}?success=true",
+                cancel_url=f"{BASE_URL}?cancel=true",
             )
-            st.session_state["texte_ia"] = response.choices.message.content
+            # Redirection automatique vers votre Stripe Checkout réel
+            st.markdown(f'<meta http-equiv="refresh" content="0; url={checkout_session.url}">', unsafe_allow_html=True)
+            st.link_button("➡️ Aller vers la page de paiement sécurisée", checkout_session.url)
+        except Exception as e:
+            st.error(f"Erreur d'initialisation Stripe : {e}")
+
+    # 👀 PREUVE VISUELLE POUR LE CLIENT : Les boutons apparaissent mais sont bloqués
+    st.markdown("---")
+    st.markdown("### ⚙️ Vos outils d'optimisation budgétaire (Verrouillés)")
+    st.caption("💡 *Ces 3 boutons s'activeront et interrogeront l'IA en direct dès la validation de votre paiement.*")
+    
+    col_lock1, col_lock2, col_lock3 = st.columns(3)
+    with col_lock1:
+        st.button("🔒 🏨 Chercher hôtel pas cher", disabled=True, key="btn_h_lock")
+    with col_lock2:
+        st.button("🔒 🍔 Restaurant pas cher", disabled=True, key="btn_r_lock")
+    with col_lock3:
+        st.button("🔒 🚗 Location de voiture", disabled=True, key="btn_c_lock")
+
+# ==========================================
+# 🔓 CAS N°2 : LE CLIENT A PAYÉ (TOUT SE DÉBLOQUE)
+# ==========================================
+else:
+    st.success("✅ **Félicitations ! Votre paiement a été validé. Vos outils premium et l'IA sont actifs.**")
+    
+    # La suite de l'itinéraire générée par OpenAI
+    with st.spinner("L'IA rédige la suite de votre parcours d'expert..."):
+        prompt_suite = f"Rédige de manière condensée la suite de l'itinéraire du Jour 3 au Jour {jours} pour un voyage {style} à {destination}."
+        st.markdown(demander_ia(prompt_suite))
             
-        except Exception:
-            # TEXTE DE DÉMONSTRATION COMPLET DE 7 JOURS SI PAS DE CLÉ API
-            st.session_state["texte_ia"] = f"""Jour 1 : Immersion a {destination_input.capitalize()}
-- Matin : Accueil et installation a votre hebergement (Adapte a votre budget de {hotel_par_jour} EUR/nuit). Decouverte du centre historique a pied.
-- Apres-midi : Visite des monuments incontournables et balade dans les parcs locaux.
-- Soir : Diner traditionnel dans un restaurant local pour tester la gastronomie typique.
-
-Jour 2 : Exploration Culturelle
-- Matin : Visite des grands musees nationaux ou des sites archeologiques de la region.
-- Apres-midi : Quartier libre pour faire du shopping dans les marches traditionnels ou artisanaux.
-- Conseil secret : Utilisez les transports collectifs (metro/tramway), tres avantageux pour votre budget de {repas_par_jour + loisirs_par_jour} EUR/jour.
-
-Jour 3 : Quartiers Historiques et Architecture
-- Matin : Promenade architecturale guidee à travers les plus vieux quartiers de la ville.
-- Apres-midi : Visite d'un monument emblematique moins connu des touristes pour eviter la foule.
-
-Jour 4 : Journee Excursion et Nature
-- Matin : Depart pour une excursion en dehors de la ville vers un lac, une plage ou une montagne proche.
-
-Jour 5 : Gastronomie Fine et Rencontres
-- Matin : Cours de cuisine locale ou degustation de produits du terroir chez un artisan.
-
-... (La suite de l'itineraire est verrouillee par le paiement)"""
-
-        # --- ARCHITECTURE DU PDF SÉCURISÉ ---
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_fill_color(30, 58, 138)
-        pdf.rect(0, 0, 210, 40, 'F')
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Helvetica", "B", 18)
-        pdf.ln(10)
-        pdf.cell(0, 10, "VOTRE RAPPORT DE VOYAGE SUR-MESURE", ln=True, align="C")
-        pdf.ln(15)
-        pdf.set_text_color(40, 40, 40)
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 10, f"Fiche de route : {destination_input.capitalize()}", ln=True)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(4)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 7, f"Duree du sejour : {duree_input} jours", ln=True)
-        pdf.cell(0, 7, f"Style selectionne : {style_input}", ln=True)
-        pdf.cell(0, 7, f"Budget Total Estime : {st.session_state['budget_global']} EUR", ln=True)
-        pdf.ln(10)
-        
-        st.session_state["pdf_cree"] = bytes(pdf.output())
-
-# --- BLOC D'AFFICHAGE PERSISTANT ---
-if "calcul_ok" in st.session_state and st.session_state["calcul_ok"]:
     st.markdown("---")
-    st.markdown(f"### 📊 Récapitulatif du Budget pour {st.session_state['dur']} jours à {st.session_state['dest'].capitalize()}")
+    st.markdown("### ⚙️ Vos outils d'optimisation budgétaire débloqués (Recherche IA en direct)")
     
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Logement Total", f"{st.session_state['logement_total']} EUR")
-    c2.metric("Vie sur place", f"{st.session_state['vie_total']} EUR")
-    c3.metric("BUDGET TOTAL ESTIMÉ", f"{st.session_state['budget_global']} EUR", delta_color="inverse")
-    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
     
-    st.markdown("### 🗺️ Localisation de votre destination")
-    try:
-        geolocator = Nominatim(user_agent="mon_super_copilot_voyage_ia_2026", timeout=5)
-        location = geolocator.geocode(st.session_state["dest"])
-        if location:
-            m = folium.Map(location=[location.latitude, location.longitude], zoom_start=5)
-            folium.Marker([location.latitude, location.longitude], popup=st.session_state["dest"].capitalize()).add_to(m)
-            st_folium(m, width=700, height=400, key="carte_voyage_stable")
-    except Exception:
-        st.info("Affichage visuel de la carte.")
+    with col1:
+        if st.button("🏨 Chercher hôtel pas cher", key="btn_h_open"):
+            with st.spinner(f"Recherche de logements économiques à {destination}..."):
+                prompt_hotel = f"Donne 3 vrais noms d'hôtels ou maisons d'hôtes réels et bien notés à {destination} à moins de {budget_hotel}€ par nuit. Présente sous forme de tableau Markdown (Nom, Prix, Quartier)."
+                st.markdown(demander_ia(prompt_hotel))
+                
+    with col2:
+        if st.button("🍔 Restaurant pas cher", key="btn_r_open"):
+            with st.spinner(f"Trouvailles culinaires à {destination}..."):
+                prompt_resto = f"Donne 3 vrais noms de restaurants locaux ou street food pas chers pour manger local à {destination} pour moins de {budget_nourriture}€ par repas. Ajoute une spécialité à tester."
+                st.markdown(demander_ia(prompt_resto))
+                
+    with col3:
+        if st.button("🚗 Location de voiture", key="btn_c_open"):
+            with st.spinner(f"Analyse des transports à {destination}..."):
+                prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}. Sois concis."
+                st.markdown(demander_ia(prompt_voiture))
 
-    st.markdown("---")
-    st.success("✨ Votre aperçu d'itinéraire personnalisé selon votre budget est prêt !")
-    
-    # --- COUPE DU TEXTE POUR APERÇU GRATUIT (JOUR 1 & 2) ---
-    texte_complet = st.session_state["texte_ia"]
-    if "Jour 3" in texte_complet:
-        texte_gratuit = texte_complet.split("Jour 3")[0]
-        st.markdown(texte_gratuit)
-        
-        # --- ENCART DE PAIEMENT STRIPE POUR LE RESTE ---
-        st.markdown("---")
-        st.markdown("### 🔒 Débloquez l'itinéraire complet et téléchargez votre guide PDF pro !")
-        st.markdown("Pour seulement **4,99 EUR** en paiement unique, accédez instantanément à la totalité de votre fiche de route optimisée, vos conseils secrets et votre planificateur budgétaire exportable.")
-        
-        # ⚠️ REMPLACE UNIQUEMENT LA LIGNE CI-DESSOUS PAR TON LIEN STRIPE ⚠️
-        lien_de_paiement_stripe = "https://buy.stripe.com/cNi5kC5TV1vs3R22cU8g001"
- 
-        
-        st.link_button("💳 Débloquer mon itinéraire complet (4,99 EUR)", lien_de_paiement_stripe, type="primary")
-    else:
-        st.markdown(texte_complet)
-        st.sidebar.markdown("### 📥 Téléchargement")
-        st.sidebar.download_button(
-            label="Télécharger le Guide PDF Pro 📄",
-            data=st.session_state["pdf_cree"],
-            file_name=f"Guide_Voyage_{st.session_state['dest']}.pdf",
-            mime="application/pdf"
-        )
 
 
 
