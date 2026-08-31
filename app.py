@@ -105,14 +105,13 @@ if not st.session_state.est_paye:
     st.markdown(f"""
     ### 🚀 Débloquez votre Guide Premium pour {destination}
     Accédez instantanément à vos outils d'optimisation et à votre itinéraire complet pour seulement **4,99 EUR** :
-    *   🗺️ **L'itinéraire complet** du Jour 3 au Jour {jours} généré sur mesure par l'IA.
+    *   🗺️ ** L'itinéraire complet** du Jour 3 au Jour {jours} généré sur mesure par l'IA.
     *   🏨 Activation du bouton **Chercher un hôtel moins cher** (Hôtels réels sous les {budget_hotel} EUR).
     *   🍔 Activation du bouton **Restaurant pas cher** (Adresses locales authentiques).
     *   🚗 Activation du guide de **Location de voiture** (Options éco et astuces transports).
     """)
     
-   
-        if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
+    if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -125,17 +124,16 @@ if not st.session_state.est_paye:
                 cancel_url=f"{BASE_URL}?cancel=true",
             )
             
-            # 1. Option de secours visuelle : Un vrai bouton cliquable qui apparaît si la redirection automatique échoue
+            # Message de succès et affichage d'un vrai bouton cliquable
             st.success("🎟️ Votre lien de paiement est prêt !")
-            st.link_button("➡️ Cliquez ici pour ouvrir la page de paiement sécurisée", checkout_session.url, type="primary")
+            st.link_button("➡️ Ouvrir la page de paiement sécurisée", checkout_session.url, type="primary")
             
-            # 2. Injection JavaScript pour forcer l'ouverture automatique immédiate dans un nouvel onglet
+            # Injection de secours pour tenter l'ouverture automatique
             js = f"<script>window.open('{checkout_session.url}', '_blank');</script>"
             st.components.v1.html(js, height=0)
             
         except Exception as e:
             st.error(f"Erreur d'initialisation Stripe : {e}")
-
 
     # Aperçu visuel des boutons bloqués
     st.markdown("---")
@@ -182,6 +180,8 @@ else:
             with st.spinner(f"Analyse des transports à {destination}..."):
                 prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}."
                 st.markdown(demander_gemini(prompt_voiture))
+
+
 
 
 
