@@ -1,6 +1,7 @@
 stripe
-openai
+google-genai
 streamlit-folium
 geopy
 fpdf2
+
 
