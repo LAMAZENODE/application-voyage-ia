@@ -48,7 +48,7 @@ def demander_gemini(prompt):
     try:
         # Syntaxe officielle du nouveau SDK avec le modèle de référence gemini-3.6-flash
         response = client_gemini.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.6-flash',
             contents=f"Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown. Réponds au prompt suivant : {prompt}",
         )
         return response.text
