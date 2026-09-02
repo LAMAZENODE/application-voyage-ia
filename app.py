@@ -46,7 +46,7 @@ def demander_gemini(prompt):
     if client_gemini is None:
         return "⚠️ L'IA n'est pas configurée. Veuillez ajouter votre GEMINI_API_KEY dans les Secrets."
     try:
-        # Syntaxe officielle du nouveau SDK avec le modèle de référence gemini-2.5-flash
+        # Syntaxe officielle du nouveau SDK avec le modèle de référence gemini-3.6-flash
         response = client_gemini.models.generate_content(
             model='gemini-2.5-flash',
             contents=f"Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown. Réponds au prompt suivant : {prompt}",
