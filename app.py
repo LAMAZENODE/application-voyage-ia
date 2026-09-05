@@ -32,7 +32,7 @@ import os
 # Détecter si on est sur Streamlit Cloud
 if "STREAMLIT_CLOUD" in os.environ or "STREAMLIT_SHARING" in os.environ:
     # En production - REMPLACEZ PAR VOTRE URL
-    BASE_URL = "https://votre-nom-app.streamlit.app"
+    BASE_URL = "https://application1-voyage-ia-y4uuyrrbw4nzirmc4skpyv.streamlit.app/"
 else:
     # En local
     BASE_URL = "http://localhost:8501"
