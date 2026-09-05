@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import openai
 import stripe
+import google.generativeai as genai
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -13,16 +13,19 @@ st.subheader("Générez votre itinéraire, visualisez la carte et estimez votre 
 # 🔑 RÉCUPÉRATION DE VOS SECRETS STREAMLIT
 # ==========================================
 try:
-    # Le code va chercher vos clés réelles cachées dans vos secrets Streamlit
+    # Clés Stripe
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-except Exception:
-    st.warning("⚠️ Clés manquantes dans vos Streamlit Secrets (STRIPE_SECRET_KEY, STRIPE_PRICE_ID ou OPENAI_API_KEY).")
+    
+    # Clé Gemini (remplace OPENAI_API_KEY)
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash" pour plus de rapidité
+except Exception as e:
+    st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
 
 # URL de redirection après le paiement
-BASE_URL = st.query_params.get("url", "http://localhost:8501") 
+BASE_URL = st.query_params.get("url", "http://localhost:8501")
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -36,21 +39,17 @@ if st.query_params.get("success") == "true":
     st.query_params.clear()
 
 # ==========================================
-# 🧠 FONCTION COMMUNE POUR L'IA (OPENAI)
+# 🧠 FONCTION COMMUNE POUR L'IA (GEMINI)
 # ==========================================
 def demander_ia(prompt):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Tu es un guide touristique expert. Donne des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
+        model = genai.GenerativeModel(MODELE_GEMINI)
+        response = model.generate_content(
+            prompt + "\n\nRéponds avec des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."
         )
-        return response.choices.message['content']
+        return response.text
     except Exception as e:
-        return f"⚠️ Erreur de connexion à l'IA : {e}."
+        return f"⚠️ Erreur de connexion à l'IA Gemini : {e}."
 
 # ==========================================
 # 🗺️ ENTRÉES DE L'UTILISATEUR (DYNAMIQUES)
@@ -114,7 +113,7 @@ if not st.session_state.est_paye:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{
-                    'price': ID_PRIX_STRIPE,  # Appel de votre Price ID réel configuré sur Stripe
+                    'price': ID_PRIX_STRIPE,
                     'quantity': 1
                 }],
                 mode='payment',
@@ -146,7 +145,7 @@ if not st.session_state.est_paye:
 else:
     st.success("✅ **Félicitations ! Votre paiement a été validé. Vos outils premium et l'IA sont actifs.**")
     
-    # La suite de l'itinéraire générée par OpenAI
+    # La suite de l'itinéraire générée par Gemini
     with st.spinner("L'IA rédige la suite de votre parcours d'expert..."):
         prompt_suite = f"Rédige de manière condensée la suite de l'itinéraire du Jour 3 au Jour {jours} pour un voyage {style} à {destination}."
         st.markdown(demander_ia(prompt_suite))
