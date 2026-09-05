@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import stripe
-from google import genai
+from google import genai  # Nouvelle importation
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -13,22 +13,19 @@ st.subheader("Générez votre itinéraire, visualisez la carte et estimez votre 
 # 🔑 RÉCUPÉRATION DE VOS SECRETS STREAMLIT
 # ==========================================
 try:
+    # Clés Stripe
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
+    
+    # Clé Gemini avec la nouvelle SDK
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-    MODELE_GEMINI = "gemini-1.5-pro"
+    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash"
 except Exception as e:
     st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
 
-# ==========================================
-# 🌐 URL DE REDIRECTION STRIPE - CORRIGÉE
-# ==========================================
-# 👇 Pour Streamlit Cloud (PRODUCTION) - UTILISEZ CELLE-CI
-BASE_URL = "https://application1-voyage-ia-y4uuyrrbw4nzirmc4skpyv.streamlit.app"
-
-# 👇 Pour le développement local (DÉCOMMENTEZ POUR TESTER EN LOCAL)
-# BASE_URL = "http://localhost:8501"
+# URL de redirection après le paiement
+BASE_URL = st.query_params.get("url", "http://localhost:8501")
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
