@@ -1,7 +1,6 @@
-stripe
-google-genai
 streamlit-folium
 geopy
 fpdf2
-
+openai
+stripe
 
