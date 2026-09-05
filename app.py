@@ -20,9 +20,14 @@ try:
     # Clé Gemini avec la nouvelle SDK
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     MODELE_GEMINI = "gemini-1.5-pro"
+    
+    # Vérification que le price ID est correct
+    st.sidebar.success(f"✅ Price ID configuré: {ID_PRIX_STRIPE[:10]}...")
+    
 except Exception as e:
-    st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
-    ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
+    st.error(f"⚠️ Erreur de configuration: {e}")
+    st.info("Vérifiez vos secrets Streamlit")
+    ID_PRIX_STRIPE = "price_1UAFT4AGivtq6O4I4fXkkCkv"  # Fallback avec votre nouveau price_id
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -106,67 +111,61 @@ if not st.session_state.est_paye:
     *   🚗 Activation du guide de **Location de voiture** (Agences locales éco et astuces transports).
     """)
     
-    # Le bouton de paiement Stripe réel - VERSION CORRIGÉE
+    # Le bouton de paiement Stripe réel
     if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)", key="pay_button"):
         try:
-            # Construction de l'URL de base - CORRECTION ICI
-            # Utiliser l'URL actuelle ou localhost par défaut
-            import urllib.parse
+            # Construction de l'URL de base
+            # Pour Streamlit Cloud, utilisez l'URL de l'application
+            # Pour localhost, utilisez http://localhost:8501
+            base_url = "http://localhost:8501"  # Développement local
             
-            # Récupérer l'URL depuis les paramètres ou utiliser localhost
-            base_url = st.query_params.get("url", None)
-            
-            if not base_url:
-                # Pour Streamlit Cloud, utiliser l'URL de l'application
-                # Pour le développement local, utiliser localhost
-                base_url = "http://localhost:8501"
-                
-                # Si on est en production (Streamlit Cloud), essayer de détecter
-                if 'host' in st.query_params:
-                    base_url = st.query_params.get('host', base_url)
-            
-            # S'assurer que l'URL est bien formatée
-            if not base_url.startswith("http"):
-                base_url = "http://" + base_url
-                
-            # Nettoyer l'URL
-            base_url = base_url.rstrip('/')
+            # En production, vous pouvez définir l'URL manuellement ou via les paramètres
+            # base_url = "https://votre-app.streamlit.app"  # Production
             
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{
-                    'price': ID_PRIX_STRIPE,
+                    'price': ID_PRIX_STRIPE,  # Utilise votre nouveau price_id
                     'quantity': 1
                 }],
                 mode='payment',
-                success_url=f"{base_url}/?success=true",
-                cancel_url=f"{base_url}/?cancel=true",
+                success_url=f"{base_url}?success=true",
+                cancel_url=f"{base_url}?cancel=true",
             )
             
-            # Utiliser un lien HTML pour la redirection
+            # Afficher le lien de paiement
             st.markdown(f"""
-            <div style="text-align: center; padding: 20px;">
-                <p>Redirection vers Stripe en cours...</p>
+            <div style="text-align: center; padding: 20px; 
+                        background-color: #f0f0f0; border-radius: 10px;
+                        border: 2px solid #6772e5;">
+                <h3>🔄 Redirection vers le paiement sécurisé</h3>
+                <p>Vous allez être redirigé vers Stripe pour finaliser votre paiement.</p>
                 <a href="{checkout_session.url}" target="_self" 
-                   style="display: inline-block; padding: 12px 24px; 
+                   style="display: inline-block; padding: 15px 30px; 
                           background-color: #6772e5; color: white; 
-                          text-decoration: none; border-radius: 4px;
-                          font-weight: bold;">
-                    ➡️ Cliquez ici si la redirection ne fonctionne pas
+                          text-decoration: none; border-radius: 5px;
+                          font-weight: bold; font-size: 18px;
+                          margin: 10px 0;">
+                    💳 Procéder au paiement
                 </a>
-                <script>
-                    setTimeout(function() {{
-                        window.location.href = '{checkout_session.url}';
-                    }}, 1000);
-                </script>
+                <br>
+                <small style="color: #666;">🔒 Paiement sécurisé par Stripe</small>
             </div>
+            <script>
+                // Redirection automatique après 2 secondes
+                setTimeout(function() {{
+                    window.location.href = '{checkout_session.url}';
+                }}, 2000);
+            </script>
             """, unsafe_allow_html=True)
             
+        except stripe.error.StripeError as e:
+            st.error(f"Erreur Stripe : {e.user_message}")
+            st.info("Vérifiez que votre clé secrète Stripe et votre Price ID sont corrects.")
         except Exception as e:
-            st.error(f"Erreur d'initialisation Stripe : {e}")
-            st.info("Vérifiez que votre clé Stripe et votre Price ID sont corrects dans les secrets.")
+            st.error(f"Erreur d'initialisation : {e}")
 
-    # 👀 PREUVE VISUELLE POUR LE CLIENT : Les boutons apparaissent mais sont bloqués
+    # Boutons verrouillés
     st.markdown("---")
     st.markdown("### ⚙️ Vos outils d'optimisation budgétaire (Verrouillés)")
     st.caption("💡 *Ces 3 boutons s'activeront et interrogeront l'IA en direct dès la validation de votre paiement.*")
