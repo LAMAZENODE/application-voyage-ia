@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import stripe
-import google.generativeai as genai
+from google import genai  # Nouvelle importation
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -17,9 +17,9 @@ try:
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
     
-    # Clé Gemini (remplace OPENAI_API_KEY)
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash" pour plus de rapidité
+    # Clé Gemini avec la nouvelle SDK
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash"
 except Exception as e:
     st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
@@ -43,9 +43,9 @@ if st.query_params.get("success") == "true":
 # ==========================================
 def demander_ia(prompt):
     try:
-        model = genai.GenerativeModel(MODELE_GEMINI)
-        response = model.generate_content(
-            prompt + "\n\nRéponds avec des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."
+        response = client.models.generate_content(
+            model=MODELE_GEMINI,
+            contents=prompt + "\n\nRéponds avec des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."
         )
         return response.text
     except Exception as e:
