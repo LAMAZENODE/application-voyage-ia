@@ -106,16 +106,31 @@ if not st.session_state.est_paye:
     *   🚗 Activation du guide de **Location de voiture** (Agences locales éco et astuces transports).
     """)
     
-    # Le bouton de paiement Stripe réel - CORRECTION ICI
+    # Le bouton de paiement Stripe réel - VERSION CORRIGÉE
     if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)", key="pay_button"):
         try:
-            # Construction de l'URL de base
+            # Construction de l'URL de base - CORRECTION ICI
+            # Utiliser l'URL actuelle ou localhost par défaut
+            import urllib.parse
+            
+            # Récupérer l'URL depuis les paramètres ou utiliser localhost
             base_url = st.query_params.get("url", None)
+            
             if not base_url:
-                # Utiliser l'URL actuelle comme base
-                base_url = "https://" + st.request.host if st.request else "http://localhost:8501"
-                if not base_url.startswith("http"):
-                    base_url = "http://localhost:8501"
+                # Pour Streamlit Cloud, utiliser l'URL de l'application
+                # Pour le développement local, utiliser localhost
+                base_url = "http://localhost:8501"
+                
+                # Si on est en production (Streamlit Cloud), essayer de détecter
+                if 'host' in st.query_params:
+                    base_url = st.query_params.get('host', base_url)
+            
+            # S'assurer que l'URL est bien formatée
+            if not base_url.startswith("http"):
+                base_url = "http://" + base_url
+                
+            # Nettoyer l'URL
+            base_url = base_url.rstrip('/')
             
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -124,25 +139,32 @@ if not st.session_state.est_paye:
                     'quantity': 1
                 }],
                 mode='payment',
-                success_url=f"{base_url}?success=true",
-                cancel_url=f"{base_url}?cancel=true",
+                success_url=f"{base_url}/?success=true",
+                cancel_url=f"{base_url}/?cancel=true",
             )
             
-            # Redirection avec JavaScript - plus fiable
-            st.markdown(
-                f"""
+            # Utiliser un lien HTML pour la redirection
+            st.markdown(f"""
+            <div style="text-align: center; padding: 20px;">
+                <p>Redirection vers Stripe en cours...</p>
+                <a href="{checkout_session.url}" target="_self" 
+                   style="display: inline-block; padding: 12px 24px; 
+                          background-color: #6772e5; color: white; 
+                          text-decoration: none; border-radius: 4px;
+                          font-weight: bold;">
+                    ➡️ Cliquez ici si la redirection ne fonctionne pas
+                </a>
                 <script>
-                    window.location.href = '{checkout_session.url}';
+                    setTimeout(function() {{
+                        window.location.href = '{checkout_session.url}';
+                    }}, 1000);
                 </script>
-                """,
-                unsafe_allow_html=True
-            )
-            # Fallback : afficher le lien si la redirection échoue
-            st.info("Si la redirection ne fonctionne pas, cliquez sur le lien ci-dessous :")
-            st.markdown(f"[➡️ Aller vers la page de paiement sécurisée]({checkout_session.url})")
+            </div>
+            """, unsafe_allow_html=True)
             
         except Exception as e:
             st.error(f"Erreur d'initialisation Stripe : {e}")
+            st.info("Vérifiez que votre clé Stripe et votre Price ID sont corrects dans les secrets.")
 
     # 👀 PREUVE VISUELLE POUR LE CLIENT : Les boutons apparaissent mais sont bloqués
     st.markdown("---")
