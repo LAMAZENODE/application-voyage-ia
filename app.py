@@ -25,7 +25,17 @@ except Exception as e:
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
 
 # URL de redirection après le paiement
-BASE_URL = st.query_params.get("url", "http://localhost:8501")
+
+# URL de redirection Stripe
+import os
+
+# Détecter si on est sur Streamlit Cloud
+if "STREAMLIT_CLOUD" in os.environ or "STREAMLIT_SHARING" in os.environ:
+    # En production - REMPLACEZ PAR VOTRE URL
+    BASE_URL = "https://votre-nom-app.streamlit.app"
+else:
+    # En local
+    BASE_URL = "http://localhost:8501"
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
