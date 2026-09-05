@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import stripe
 from google import genai
-import os  # <-- Garder cet import
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -23,12 +22,12 @@ except Exception as e:
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
 
 # ==========================================
-# 🌐 URL DE REDIRECTION POUR STRIPE - CORRIGÉE
+# 🌐 URL DE REDIRECTION STRIPE - CORRIGÉE
 # ==========================================
-# 👇 PRODUCTION (Streamlit Cloud) - DÉCOMMENTEZ POUR DÉPLOYER
+# 👇 Pour Streamlit Cloud (PRODUCTION) - UTILISEZ CELLE-CI
 BASE_URL = "https://application1-voyage-ia-y4uuyrrbw4nzirmc4skpyv.streamlit.app"
 
-# 👇 LOCAL (développement) - DÉCOMMENTEZ POUR TESTER EN LOCAL
+# 👇 Pour le développement local (DÉCOMMENTEZ POUR TESTER EN LOCAL)
 # BASE_URL = "http://localhost:8501"
 
 # ==========================================
@@ -41,8 +40,6 @@ if "est_paye" not in st.session_state:
 if st.query_params.get("success") == "true":
     st.session_state.est_paye = True
     st.query_params.clear()
-
-# ... LE RESTE DE VOTRE CODE (inchangé) ...
 
 # ==========================================
 # 🧠 FONCTION COMMUNE POUR L'IA (GEMINI)
