@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import stripe
-from google import genai  # Nouvelle importation
+from google import genai
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -19,13 +19,10 @@ try:
     
     # Clé Gemini avec la nouvelle SDK
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash"
+    MODELE_GEMINI = "gemini-1.5-pro"
 except Exception as e:
     st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
-
-# URL de redirection après le paiement
-BASE_URL = st.query_params.get("url", "http://localhost:8501")
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -33,9 +30,11 @@ BASE_URL = st.query_params.get("url", "http://localhost:8501")
 if "est_paye" not in st.session_state:
     st.session_state.est_paye = False
 
-# Si Stripe renvoie l'utilisateur avec ?success=true dans l'URL
-if st.query_params.get("success") == "true":
+# Vérification du paramètre success dans l'URL
+query_params = st.query_params
+if query_params.get("success") == "true":
     st.session_state.est_paye = True
+    # Nettoyer les paramètres de l'URL
     st.query_params.clear()
 
 # ==========================================
@@ -107,9 +106,17 @@ if not st.session_state.est_paye:
     *   🚗 Activation du guide de **Location de voiture** (Agences locales éco et astuces transports).
     """)
     
-    # Le bouton de paiement Stripe réel
-    if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)"):
+    # Le bouton de paiement Stripe réel - CORRECTION ICI
+    if st.button("💳 Débloquer mon itinéraire & mes outils de réduction (4,99 EUR)", key="pay_button"):
         try:
+            # Construction de l'URL de base
+            base_url = st.query_params.get("url", None)
+            if not base_url:
+                # Utiliser l'URL actuelle comme base
+                base_url = "https://" + st.request.host if st.request else "http://localhost:8501"
+                if not base_url.startswith("http"):
+                    base_url = "http://localhost:8501"
+            
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{
@@ -117,12 +124,23 @@ if not st.session_state.est_paye:
                     'quantity': 1
                 }],
                 mode='payment',
-                success_url=f"{BASE_URL}?success=true",
-                cancel_url=f"{BASE_URL}?cancel=true",
+                success_url=f"{base_url}?success=true",
+                cancel_url=f"{base_url}?cancel=true",
             )
-            # Redirection automatique vers votre Stripe Checkout réel
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={checkout_session.url}">', unsafe_allow_html=True)
-            st.link_button("➡️ Aller vers la page de paiement sécurisée", checkout_session.url)
+            
+            # Redirection avec JavaScript - plus fiable
+            st.markdown(
+                f"""
+                <script>
+                    window.location.href = '{checkout_session.url}';
+                </script>
+                """,
+                unsafe_allow_html=True
+            )
+            # Fallback : afficher le lien si la redirection échoue
+            st.info("Si la redirection ne fonctionne pas, cliquez sur le lien ci-dessous :")
+            st.markdown(f"[➡️ Aller vers la page de paiement sécurisée]({checkout_session.url})")
+            
         except Exception as e:
             st.error(f"Erreur d'initialisation Stripe : {e}")
 
