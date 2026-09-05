@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import stripe
-from google import genai  # Nouvelle importation
+from google import genai
+import os  # <-- Garder cet import
 
 # 1. Configuration de la page
 st.set_page_config(page_title="IA Voyage & Budget Copilot", page_icon="🌍", layout="centered")
@@ -13,29 +14,22 @@ st.subheader("Générez votre itinéraire, visualisez la carte et estimez votre 
 # 🔑 RÉCUPÉRATION DE VOS SECRETS STREAMLIT
 # ==========================================
 try:
-    # Clés Stripe
     stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
     ID_PRIX_STRIPE = st.secrets["STRIPE_PRICE_ID"]
-    
-    # Clé Gemini avec la nouvelle SDK
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-    MODELE_GEMINI = "gemini-1.5-pro"  # ou "gemini-1.5-flash"
+    MODELE_GEMINI = "gemini-1.5-pro"
 except Exception as e:
     st.warning(f"⚠️ Clés manquantes dans vos Streamlit Secrets : {e}")
     ID_PRIX_STRIPE = "VOTRE_PRICE_ID_ICI"
 
-# URL de redirection après le paiement
+# ==========================================
+# 🌐 URL DE REDIRECTION POUR STRIPE - CORRIGÉE
+# ==========================================
+# 👇 PRODUCTION (Streamlit Cloud) - DÉCOMMENTEZ POUR DÉPLOYER
+BASE_URL = "https://application1-voyage-ia-y4uuyrrbw4nzirmc4skpyv.streamlit.app"
 
-# URL de redirection Stripe
-import os
-
-# Détecter si on est sur Streamlit Cloud
-if "STREAMLIT_CLOUD" in os.environ or "STREAMLIT_SHARING" in os.environ:
-    # En production - REMPLACEZ PAR VOTRE URL
-    BASE_URL = "https://application1-voyage-ia-y4uuyrrbw4nzirmc4skpyv.streamlit.app/"
-else:
-    # En local
-    BASE_URL = "http://localhost:8501"
+# 👇 LOCAL (développement) - DÉCOMMENTEZ POUR TESTER EN LOCAL
+# BASE_URL = "http://localhost:8501"
 
 # ==========================================
 # 💳 GESTION DE L'ÉTAT DU PAIEMENT
@@ -47,6 +41,8 @@ if "est_paye" not in st.session_state:
 if st.query_params.get("success") == "true":
     st.session_state.est_paye = True
     st.query_params.clear()
+
+# ... LE RESTE DE VOTRE CODE (inchangé) ...
 
 # ==========================================
 # 🧠 FONCTION COMMUNE POUR L'IA (GEMINI)
