@@ -104,10 +104,10 @@ if not st.session_state.est_paye:
     *   🏨 Activation du bouton **Chercher un hôtel moins cher**.
     *   🍔 Activation du bouton **Restaurant pas cher**.
     *   🚗 Activation du guide de **Location de voiture**.
+    *   🚐 Activation du guide **Emplacements pour camping-car**.
     """)
     
     # URL de votre application en production
-    # À MODIFIER AVEC VOTRE URL STREAMLIT CLOUD
     APP_URL = "https://votre-app.streamlit.app"  # <-- REMPLACEZ PAR VOTRE URL
     
     if st.button("💳 Débloquer mon itinéraire (4,99 EUR)", key="pay_button"):
@@ -160,13 +160,15 @@ if not st.session_state.est_paye:
     st.markdown("### ⚙️ Outils d'optimisation (Verrouillés)")
     st.caption("💡 Débloquez après paiement")
     
-    col_lock1, col_lock2, col_lock3 = st.columns(3)
+    col_lock1, col_lock2, col_lock3, col_lock4 = st.columns(4)
     with col_lock1:
         st.button("🔒 Hôtel pas cher", disabled=True, key="btn_h_lock")
     with col_lock2:
         st.button("🔒 Restaurant pas cher", disabled=True, key="btn_r_lock")
     with col_lock3:
         st.button("🔒 Location de voiture", disabled=True, key="btn_c_lock")
+    with col_lock4:
+        st.button("🔒 Camping-car", disabled=True, key="btn_camping_lock")
 
 # ==========================================
 # 🔓 CONTENU DÉBLOQUÉ
@@ -182,7 +184,7 @@ else:
     st.markdown("---")
     st.markdown("### ⚙️ Outils d'optimisation débloqués")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         if st.button("🏨 Hôtel pas cher", key="btn_h_open"):
@@ -201,4 +203,9 @@ else:
             with st.spinner(f"Recherche de transports à {destination}..."):
                 prompt_voiture = f"Donne les meilleures options de location de voiture réelles ou alternatives de transports économiques à {destination}."
                 st.markdown(demander_ia(prompt_voiture))
-
+    
+    with col4:
+        if st.button("🚐 Camping-car", key="btn_camping_open"):
+            with st.spinner(f"Recherche d'emplacements pour camping-car à {destination}..."):
+                prompt_camping = f"Donne 3 vrais noms d'aires de camping-car ou campings avec emplacements bien notés à {destination}. Inclus prix approximatif par nuit, services disponibles (électricité, eau, vidange) et avis sur l'emplacement. Présente sous forme de tableau Markdown."
+                st.markdown(demander_ia(prompt_camping))
