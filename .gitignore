@@ -1,0 +1,16 @@
+# 🚨 SECRETS - NE JAMAIS COMMITTER
+.streamlit/secrets.toml
+
+# Python
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Système
+.DS_Store
+Thumbs.db
