@@ -17,6 +17,7 @@ def charger_traductions():
 
 TRADUCTIONS = charger_traductions()
 
+
 LANGUES = {
     "🇫🇷 Français": "fr",
     "🇬🇧 English": "en",
@@ -28,6 +29,40 @@ LANGUES = {
 
 if "langue" not in st.session_state:
     st.session_state.langue = "fr"
+
+# CSS pour l'arabe (droite à gauche)
+def injecter_css_arabe():
+    if st.session_state.langue == "ar":
+        st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        html, body, [class*="css"], .stApp {
+            direction: rtl;
+            text-align: right;
+            font-family: 'Cairo', sans-serif;
+        }
+        .stTextArea textarea, .stTextInput input,
+        .stNumberInput input, .stSelectbox select {
+            direction: rtl;
+            text-align: right;
+        }
+        .stMarkdown, .stMarkdown p, .stMarkdown li,
+        h1, h2, h3, h4, h5, h6 {
+            direction: rtl;
+            text-align: right;
+        }
+        [data-testid="stSidebar"] {
+            direction: rtl;
+            text-align: right;
+        }
+        .stButton > button, .stDownloadButton > button {
+            direction: rtl;
+        }
+        .katex, .MathJax, .katex-display {
+            direction: ltr !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
 def t(cle, **kwargs):
     texte = TRADUCTIONS[st.session_state.langue].get(cle, cle)
@@ -53,6 +88,9 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.session_state.langue = LANGUES[choix]
+
+# Injecter le CSS arabe si nécessaire
+injecter_css_arabe()
 
 st.title(t("hero_title"))
 st.subheader(t("hero_subtitle"))
@@ -85,8 +123,17 @@ if query_params.get("success") == "true":
 # ==========================================
 def demander_ia(prompt):
     try:
+        noms_langues = {
+            "fr": "français",
+            "en": "anglais",
+            "de": "allemand",
+            "es": "espagnol",
+            "it": "italien",
+            "ar": "arabe standard moderne"
+        }
+        nom_langue = noms_langues.get(st.session_state.langue, "français")
         prompt_multilingue = (
-            f"Réponds IMPÉRATIVEMENT dans la langue suivante : {st.session_state.langue}. "
+            f"Réponds IMPÉRATIVEMENT en {nom_langue}. "
             f"{prompt} "
             f"Réponds avec des informations réelles, courtes et structurées sous forme de tableau ou liste Markdown."
         )
