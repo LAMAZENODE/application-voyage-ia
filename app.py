@@ -22,7 +22,8 @@ LANGUES = {
     "🇬🇧 English": "en",
     "🇩🇪 Deutsch": "de",
     "🇪🇸 Español": "es",
-    "🇮🇹 Italiano": "it"
+    "🇮🇹 Italiano": "it",
+    "🇸🇦 العربية": "ar"
 }
 
 if "langue" not in st.session_state:
