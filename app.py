@@ -217,7 +217,14 @@ if not st.session_state.est_paye:
                 mode='payment',
                 success_url=f"{APP_URL}?success=true",
                 cancel_url=f"{APP_URL}?cancel=true",
-                locale=st.session_state.langue,
+                                locale={
+                    "fr": "fr",
+                    "en": "en",
+                    "de": "de",
+                    "es": "es",
+                    "it": "it",
+                    "ar": "fr",   # ← arabe → page Stripe en français
+                }.get(st.session_state.langue, "auto"),
             )
 
             st.markdown(f"""
