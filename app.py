@@ -63,7 +63,104 @@ def injecter_css_arabe():
         }
         </style>
         """, unsafe_allow_html=True)
+def injecter_css_arabe():
+    if st.session_state.langue == "ar":
+        st.markdown("""
+        ...
+        """, unsafe_allow_html=True)
 
+
+# ==========================================
+# 🌊 ARRIÈRE-PLAN ANIMÉ (VOYAGE VIVANT)
+# ==========================================
+def injecter_fond_anime():          # ← LA FONCTION VIENT ICI
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(-45deg,
+            #ffedd5 0%, #e0f2fe 25%, #bae6fd 50%,
+            #7dd3fc 75%, #38bdf8 100%) !important;
+        background-size: 400% 400% !important;
+        animation: fondVoyage 20s ease infinite !important;
+    }
+
+    @keyframes fondVoyage {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"],
+    [data-testid="stMain"],
+    [data-testid="stMainBlockContainer"],
+    section.main, .main {
+        background: transparent !important;
+    }
+
+    [data-testid="stAppViewContainer"]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+            radial-gradient(2px 2px at 15% 25%, rgba(14, 165, 233, 0.55), transparent),
+            radial-gradient(2px 2px at 45% 65%, rgba(56, 189, 248, 0.45), transparent),
+            radial-gradient(1.5px 1.5px at 75% 15%, rgba(125, 211, 252, 0.65), transparent),
+            radial-gradient(2px 2px at 30% 85%, rgba(14, 165, 233, 0.4), transparent),
+            radial-gradient(1.5px 1.5px at 88% 55%, rgba(56, 189, 248, 0.5), transparent),
+            radial-gradient(2px 2px at 60% 40%, rgba(125, 211, 252, 0.45), transparent),
+            radial-gradient(1px 1px at 10% 70%, rgba(14, 165, 233, 0.5), transparent),
+            radial-gradient(2px 2px at 95% 90%, rgba(56, 189, 248, 0.35), transparent);
+        animation: particulesMontent 22s linear infinite;
+    }
+
+    @keyframes particulesMontent {
+        0%   { transform: translateY(0); opacity: 0.7; }
+        50%  { transform: translateY(-50vh); opacity: 0.4; }
+        100% { transform: translateY(-100vh); opacity: 0; }
+    }
+
+    [data-testid="stAppViewContainer"]::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+            linear-gradient(90deg, transparent 0%, rgba(14,165,233,0.35) 50%, transparent 100%) no-repeat,
+            linear-gradient(90deg, transparent 0%, rgba(56,189,248,0.25) 50%, transparent 100%) no-repeat;
+        background-size: 250px 1.5px, 180px 1px;
+        background-position: -300px 20%, -300px 65%;
+        animation: lignesVol 15s linear infinite;
+    }
+
+    @keyframes lignesVol {
+        0%   { background-position: -300px 20%, -300px 65%; opacity: 0; }
+        10%  { opacity: 1; }
+        90%  { opacity: 1; }
+        100% { background-position: 120vw 20%, 120vw 65%; opacity: 0; }
+    }
+
+    .block-container {
+        background: rgba(255, 255, 255, 0.82) !important;
+        backdrop-filter: blur(16px) saturate(160%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+        border-radius: 24px !important;
+        box-shadow: 0 20px 50px rgba(3, 105, 161, 0.10) !important;
+        border: 1px solid rgba(255, 255, 255, 0.55) !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .stApp,
+        [data-testid="stAppViewContainer"]::before,
+        [data-testid="stAppViewContainer"]::after {
+            animation: none !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
 def t(cle, **kwargs):
     texte = TRADUCTIONS[st.session_state.langue].get(cle, cle)
     if kwargs:
@@ -91,6 +188,7 @@ with st.sidebar:
 
 # Injecter le CSS arabe si nécessaire
 injecter_css_arabe()
+injecter_fond_anime()   # ← AJOUTEZ CETTE LIGNE
 
 st.title(t("hero_title"))
 st.subheader(t("hero_subtitle"))
