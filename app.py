@@ -307,7 +307,7 @@ if not st.session_state.est_paye:
     if st.button(t("pay_button"), key="pay_button", type="primary"):
         try:
             checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+            
                 line_items=[{
                     'price': ID_PRIX_STRIPE,
                     'quantity': 1
